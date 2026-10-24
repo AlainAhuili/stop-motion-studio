@@ -1,0 +1,6 @@
+node_modules/
+dist/
+artifact/
+deployments/
+test-results/
+playwright-report/

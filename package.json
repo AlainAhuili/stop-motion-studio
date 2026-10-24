@@ -1,0 +1,27 @@
+{
+  "name": "stop-motion-simulation",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run",
+    "build": "vite build",
+    "commit-stage": "npm run typecheck && npm run test:unit && npm run build && node scripts/package-artifact.mjs",
+    "serve": "node scripts/serve.mjs",
+    "test:acceptance": "playwright test --project=acceptance",
+    "test:perf": "vitest run --config vitest.perf.config.ts && playwright test --project=perf"
+  },
+  "dependencies": {
+    "three": "^0.178.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.0",
+    "@types/node": "^22.15.0",
+    "@types/three": "^0.178.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

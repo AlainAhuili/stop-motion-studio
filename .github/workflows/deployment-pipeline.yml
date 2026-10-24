@@ -1,0 +1,92 @@
+# Deployment pipeline (Dave Farley, Continuous Delivery).
+# One release candidate is built in the commit stage. Every later stage deploys that
+# same artifact with the same scripts/deploy.sh. Only config.json differs per environment.
+name: deployment-pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:          # short-lived PRs get commit-stage feedback only
+  workflow_dispatch:
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  commit-stage:
+    name: Commit stage (< 5 min)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run build
+      - run: node scripts/package-artifact.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ github.sha }}
+          path: artifact/
+          retention-days: 30
+
+  acceptance-stage:
+    name: Acceptance stage
+    needs: commit-stage
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4   # test code and deploy scripts only, never rebuilt
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with: { name: 'release-candidate-${{ github.sha }}', path: artifact }
+      - run: bash scripts/deploy.sh acceptance artifact deployments/acceptance
+      - run: node scripts/serve.mjs deployments/acceptance 4173 &
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:acceptance
+        env: { BASE_URL: 'http://localhost:4173' }
+
+  performance-stage:
+    name: Performance stage
+    needs: acceptance-stage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with: { name: 'release-candidate-${{ github.sha }}', path: artifact }
+      - run: bash scripts/deploy.sh performance artifact deployments/performance
+      - run: node scripts/serve.mjs deployments/performance 4174 &
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:perf
+        env: { BASE_URL: 'http://localhost:4174' }
+
+  production:
+    name: Release to production
+    needs: performance-stage
+    runs-on: ubuntu-latest
+    # Configure required reviewers on this environment: releasing is a business decision.
+    environment:
+      name: production
+      url: ${{ steps.pages.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: 'release-candidate-${{ github.sha }}', path: artifact }
+      - run: bash scripts/deploy.sh production artifact deployments/production
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: deployments/production }
+      - id: pages
+        uses: actions/deploy-pages@v4

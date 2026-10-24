@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stop Motion Simulation</title>
+    <link rel="stylesheet" href="./src/ui/style.css" />
+  </head>
+  <body>
+    <aside>
+      <h1>Stop Motion <span id="env-badge" data-testid="environment"></span></h1>
+
+      <section>
+        <h2>1. Place</h2>
+        <select id="place-kind" aria-label="Participant kind"></select>
+        <label>x <input id="place-x" type="number" value="0" step="1" /></label>
+        <label>z <input id="place-z" type="number" value="0" step="1" /></label>
+        <button id="place-btn">Place</button>
+      </section>
+
+      <section>
+        <h2>2. Move</h2>
+        <select id="move-who" aria-label="Who moves"></select>
+        <label>at <input id="move-time" type="number" value="2" min="0" step="0.5" /> s</label>
+        <label>x <input id="move-x" type="number" value="5" step="1" /></label>
+        <label>y <input id="move-y" type="number" value="0" step="1" /></label>
+        <label>z <input id="move-z" type="number" value="0" step="1" /></label>
+        <button id="move-btn">Add waypoint</button>
+      </section>
+
+      <section>
+        <h2>3. Incidents</h2>
+        <select id="event-type" aria-label="Incident type">
+          <option value="stop">stop</option>
+          <option value="vanish">vanish</option>
+          <option value="rain">rain</option>
+        </select>
+        <select id="event-who" aria-label="Who is affected"></select>
+        <label>at <input id="event-time" type="number" value="1" min="0" step="0.5" /> s</label>
+        <label>for <input id="event-duration" type="number" value="1" min="0" step="0.5" /> s</label>
+        <button id="event-btn">Add incident</button>
+      </section>
+
+      <section>
+        <h2>Film</h2>
+        <label>fps <input id="film-fps" type="number" value="12" min="1" max="60" /></label>
+        <button id="film-btn">Make the film</button>
+        <button id="play-btn" disabled>Play</button>
+        <p id="film-status" data-testid="film-status">No film yet.</p>
+        <label>go to <input id="seek-time" type="number" value="0" min="0" step="0.5" /> s</label>
+        <button id="seek-btn" disabled>Go</button>
+        <p>time: <span id="film-time" data-testid="film-time">0</span> s ·
+          weather: <span id="film-weather" data-testid="film-weather">clear</span></p>
+        <table id="inspector" data-testid="inspector"></table>
+      </section>
+
+      <p id="error" data-testid="error" role="alert"></p>
+      <ul id="story" data-testid="story"></ul>
+    </aside>
+    <main id="stage"></main>
+    <script type="module" src="./src/ui/main.ts"></script>
+  </body>
+</html>
