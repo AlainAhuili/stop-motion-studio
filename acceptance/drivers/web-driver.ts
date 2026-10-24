@@ -21,6 +21,25 @@ export class WebDriver {
     return (await story.last().textContent())!.split(' ')[0];
   }
 
+  /** Drags a participant with the mouse in the 3D view and drops it over ground spot (x, z). */
+  async drag(id: string, x: number, z: number) {
+    type Hook = { stopMotion: { screenPositionOf(id: string, at?: { x: number; z: number }): { x: number; y: number } } };
+    const [from, to] = await this.page.evaluate(
+      ([id, x, z]) => {
+        const hook = (window as unknown as Hook).stopMotion;
+        return [hook.screenPositionOf(id), hook.screenPositionOf(id, { x, z })];
+      },
+      [id, x, z] as const,
+    );
+    const story = this.page.getByTestId('story');
+    const before = await story.textContent();
+    await this.page.mouse.move(from.x, from.y);
+    await this.page.mouse.down();
+    await this.page.mouse.move(to.x, to.y, { steps: 10 });
+    await this.page.mouse.up();
+    await expect(story).not.toHaveText(before!);
+  }
+
   async addWaypoint(id: string, time: number, x: number, y: number, z: number) {
     await this.page.selectOption('#move-who', id);
     await this.page.fill('#move-time', String(time));

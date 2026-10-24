@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addEvent, addWaypoint, emptyStoryboard, place } from './storyboard';
+import { addEvent, addWaypoint, emptyStoryboard, place, reposition } from './storyboard';
 
 const origin = { x: 0, y: 0, z: 0 };
 
@@ -44,6 +44,22 @@ describe('storyboard', () => {
     expect(() =>
       addEvent(emptyStoryboard(), { type: 'stop', participantId: 'ghost-1', at: 1, duration: 1 }),
     ).toThrow(/ghost-1/);
+  });
+
+  it('can put any participant somewhere else, landscape included', () => {
+    const sb = reposition(place(emptyStoryboard(), 'mountain', origin), 'mountain-1', { x: 4, y: 0, z: -2 });
+    expect(sb.participants[0].position).toEqual({ x: 4, y: 0, z: -2 });
+  });
+
+  it('keeps the motion when a participant is put somewhere else', () => {
+    let sb = place(emptyStoryboard(), 'dog', origin);
+    sb = addWaypoint(sb, 'dog-1', { time: 2, position: { x: 10, y: 0, z: 0 } });
+    sb = reposition(sb, 'dog-1', { x: 1, y: 0, z: 1 });
+    expect(sb.motions['dog-1']).toHaveLength(1);
+  });
+
+  it('refuses to reposition participants that are not in the story', () => {
+    expect(() => reposition(emptyStoryboard(), 'ghost-1', origin)).toThrow(/ghost-1/);
   });
 
   it('accepts weather events that concern nobody in particular', () => {

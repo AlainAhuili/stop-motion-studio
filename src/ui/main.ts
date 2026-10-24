@@ -1,7 +1,7 @@
 import { loadConfig } from '../config';
 import { generateFilm, type Film, type Frame } from '../domain/film';
 import { CATALOGUE, canMove, type Kind } from '../domain/participants';
-import { addEvent, addWaypoint, emptyStoryboard, place, type IncidentEvent, type Storyboard } from '../domain/storyboard';
+import { addEvent, addWaypoint, emptyStoryboard, place, reposition, type IncidentEvent, type Storyboard } from '../domain/storyboard';
 import { World } from './world';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -13,6 +13,9 @@ let film: Film | undefined;
 let playing = 0;
 
 const world = new World($('stage'));
+world.onDragEnd = (id, position) => change(() => reposition(story, id, position));
+// Lets browser automation (the acceptance tests) find participants on screen to drag them.
+Object.assign(window, { stopMotion: { screenPositionOf: world.screenPositionOf.bind(world) } });
 
 loadConfig().then((config) => {
   if (config.environment !== 'production') $('env-badge').textContent = config.environment;

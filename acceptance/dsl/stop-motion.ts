@@ -14,6 +14,11 @@ export class StopMotion {
     this.ids.set(name, await this.driver.place(kind, at[0], at[1]));
   }
 
+  /** Picks a participant up with the mouse and puts it down somewhere else. */
+  async drag(name: string, { to }: { to: Where }) {
+    await this.driver.drag(this.id(name), to[0], to[1]);
+  }
+
   async move(name: string, { to, by, height = 0 }: { to: Where; by: number; height?: number }) {
     await this.driver.addWaypoint(this.id(name), by, to[0], height, to[1]);
   }

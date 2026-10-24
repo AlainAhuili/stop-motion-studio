@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Frame } from '../domain/film';
-import type { Kind, Participant } from '../domain/participants';
+import type { Kind, Participant, Vec3 } from '../domain/participants';
 
 const LOOK: Record<Kind, { color: number; make: () => THREE.BufferGeometry; lift: number }> = {
   tree: { color: 0x2e7d32, make: () => new THREE.ConeGeometry(0.8, 2.5, 8), lift: 1.25 },
@@ -31,6 +31,12 @@ export class World {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
   private meshes = new Map<string, THREE.Mesh>();
+  private raycaster = new THREE.Raycaster();
+  private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private drag?: { mesh: THREE.Mesh; offsetX: number; offsetZ: number };
+
+  /** Called when the child lets go of a participant they dragged to a new place. */
+  onDragEnd?: (id: string, position: Vec3) => void;
 
   constructor(private host: HTMLElement) {
     this.scene.background = CLEAR_SKY.clone();
@@ -46,6 +52,7 @@ export class World {
     host.appendChild(this.renderer.domElement);
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
+    this.enableDragging(this.renderer.domElement);
   }
 
   /** Shows the storyboard as placed, before any film exists. */
@@ -55,7 +62,74 @@ export class World {
       this.moveTo(mesh, p.kind, p.position);
       mesh.visible = true;
     }
+    this.scene.background = CLEAR_SKY;
     this.render();
+  }
+
+  /**
+   * Where a participant appears on the page, in CSS pixels, or where it would appear at
+   * another spot `at` on the ground. Used to automate dragging.
+   */
+  screenPositionOf(id: string, at?: { x: number; z: number }): { x: number; y: number } | undefined {
+    const mesh = this.meshes.get(id);
+    if (!mesh) return undefined;
+    const point = at ? new THREE.Vector3(at.x, mesh.position.y, at.z) : mesh.position.clone();
+    const p = point.project(this.camera);
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    return { x: rect.left + ((p.x + 1) / 2) * rect.width, y: rect.top + ((1 - p.y) / 2) * rect.height };
+  }
+
+  private enableDragging(canvas: HTMLCanvasElement) {
+    canvas.style.touchAction = 'none';
+
+    canvas.addEventListener('pointerdown', (e) => {
+      const mesh = this.meshUnder(e);
+      const ground = mesh && this.groundUnder(e);
+      if (!mesh || !ground) return;
+      this.drag = { mesh, offsetX: mesh.position.x - ground.x, offsetZ: mesh.position.z - ground.z };
+      canvas.setPointerCapture(e.pointerId);
+      canvas.style.cursor = 'grabbing';
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!this.drag) {
+        canvas.style.cursor = this.meshUnder(e) ? 'grab' : '';
+        return;
+      }
+      const ground = this.groundUnder(e);
+      if (!ground) return;
+      this.drag.mesh.position.x = Math.round(ground.x + this.drag.offsetX);
+      this.drag.mesh.position.z = Math.round(ground.z + this.drag.offsetZ);
+      this.render();
+    });
+
+    const release = () => {
+      if (!this.drag) return;
+      const { mesh } = this.drag;
+      this.drag = undefined;
+      canvas.style.cursor = 'grab';
+      const { id, kind } = mesh.userData as { id: string; kind: Kind };
+      this.onDragEnd?.(id, { x: mesh.position.x, y: mesh.position.y - LOOK[kind].lift, z: mesh.position.z });
+    };
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
+  }
+
+  private pointAt(e: PointerEvent) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+  }
+
+  private meshUnder(e: PointerEvent): THREE.Mesh | undefined {
+    this.pointAt(e);
+    const visible = [...this.meshes.values()].filter((m) => m.visible);
+    return this.raycaster.intersectObjects(visible, false)[0]?.object as THREE.Mesh | undefined;
+  }
+
+  private groundUnder(e: PointerEvent): THREE.Vector3 | null {
+    this.pointAt(e);
+    return this.raycaster.ray.intersectPlane(this.groundPlane, new THREE.Vector3());
   }
 
   showFrame(frame: Frame) {
@@ -73,6 +147,7 @@ export class World {
     if (!mesh) {
       const look = LOOK[kind];
       mesh = new THREE.Mesh(look.make(), new THREE.MeshLambertMaterial({ color: look.color }));
+      mesh.userData = { id, kind };
       this.meshes.set(id, mesh);
       this.scene.add(mesh);
     }

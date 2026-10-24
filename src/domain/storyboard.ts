@@ -23,6 +23,15 @@ export function place(sb: Storyboard, kind: Kind, position: Vec3): Storyboard {
   return { ...sb, participants: [...sb.participants, participant] };
 }
 
+/** Step 1 again: put an already placed participant somewhere else. Its motion is kept. */
+export function reposition(sb: Storyboard, participantId: string, position: Vec3): Storyboard {
+  find(sb, participantId);
+  return {
+    ...sb,
+    participants: sb.participants.map((p) => (p.id === participantId ? { ...p, position: { ...position } } : p)),
+  };
+}
+
 /** Step 2: tell a participant where to be at a given time. */
 export function addWaypoint(sb: Storyboard, participantId: string, waypoint: Waypoint): Storyboard {
   const participant = find(sb, participantId);
