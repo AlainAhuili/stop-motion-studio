@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # The domain: plain C++, no browser or UI code, so it builds natively and to WebAssembly.
-add_library(stop_motion_core src/motion.cpp)
+add_library(stop_motion_core src/motion.cpp src/participants.cpp src/storyboard.cpp src/film.cpp)
 target_include_directories(stop_motion_core PUBLIC include)
 if(MSVC)
   target_compile_options(stop_motion_core PRIVATE /W4 /WX)
@@ -20,8 +20,12 @@ if(EMSCRIPTEN)
   add_executable(stop_motion_wasm bindings/wasm.cpp)
   target_link_libraries(stop_motion_wasm PRIVATE stop_motion_core)
   set_target_properties(stop_motion_wasm PROPERTIES OUTPUT_NAME core SUFFIX .js)
+  # Native WebAssembly exceptions, so a refused rule can be caught and reported to JavaScript.
+  # -Oz: optimise for download size, which the performance stage budgets.
+  target_compile_options(stop_motion_core PRIVATE -fwasm-exceptions -Oz)
+  target_compile_options(stop_motion_wasm PRIVATE -fwasm-exceptions -Oz)
   target_link_options(stop_motion_wasm PRIVATE
-    -lembind -O3
+    -lembind -Oz -fwasm-exceptions
     -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createCore
     -sSINGLE_FILE=1 -sENVIRONMENT=web,node
     -sALLOW_MEMORY_GROWTH=1 -sFILESYSTEM=0)
@@ -36,7 +40,8 @@ else()
   FetchContent_MakeAvailable(googletest)
 
   enable_testing()
-  add_executable(core_tests tests/motion_test.cpp)
+  add_executable(core_tests
+    tests/motion_test.cpp tests/participants_test.cpp tests/storyboard_test.cpp tests/film_test.cpp)
   target_link_libraries(core_tests PRIVATE stop_motion_core GTest::gtest_main)
   include(GoogleTest)
   gtest_discover_tests(core_tests)

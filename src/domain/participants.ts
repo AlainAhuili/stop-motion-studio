@@ -1,11 +1,12 @@
-export const CATALOGUE = {
-  landscape: ['tree', 'road', 'mountain', 'forest', 'lake', 'sea', 'river', 'sun'],
-  animal: ['human', 'dog', 'bird', 'fish', 'horse'],
-  vehicle: ['car', 'plane', 'boat', 'bicycle'],
-} as const;
+import { core } from './core';
 
-export type Category = keyof typeof CATALOGUE;
-export type Kind = (typeof CATALOGUE)[Category][number];
+// Rules: core/src/participants.cpp. This file holds the TypeScript types for them.
+
+export type Category = 'landscape' | 'animal' | 'vehicle';
+export type Kind =
+  | 'tree' | 'road' | 'mountain' | 'forest' | 'lake' | 'sea' | 'river' | 'sun'
+  | 'human' | 'dog' | 'bird' | 'fish' | 'horse'
+  | 'car' | 'plane' | 'boat' | 'bicycle';
 
 export interface Vec3 {
   x: number;
@@ -20,13 +21,9 @@ export interface Participant {
   position: Vec3;
 }
 
-export function categoryOf(kind: Kind): Category {
-  for (const category of Object.keys(CATALOGUE) as Category[]) {
-    if ((CATALOGUE[category] as readonly string[]).includes(kind)) return category;
-  }
-  throw new Error(`Unknown participant kind: ${kind}`);
-}
+/** Every kind a child can place, by category, in display order. */
+export const CATALOGUE: Readonly<Record<Category, readonly Kind[]>> = core.catalogue();
 
-export function canMove(category: Category): boolean {
-  return category !== 'landscape';
-}
+export const categoryOf = (kind: Kind): Category => core.categoryOf(kind);
+
+export const canMove = (category: Category): boolean => core.canMove(category);

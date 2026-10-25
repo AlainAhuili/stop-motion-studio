@@ -1,5 +1,9 @@
+import { core } from './core';
 import type { Waypoint } from './motion';
-import { canMove, categoryOf, type Kind, type Participant, type Vec3 } from './participants';
+import type { Kind, Participant, Vec3 } from './participants';
+
+// Rules: core/src/storyboard.cpp. Every operation returns a new storyboard;
+// a refused rule throws an Error whose message a child can read.
 
 export type IncidentEvent =
   | { type: 'stop'; participantId: string; at: number; duration: number }
@@ -12,46 +16,18 @@ export interface Storyboard {
   events: IncidentEvent[];
 }
 
-export function emptyStoryboard(): Storyboard {
-  return { participants: [], motions: {}, events: [] };
-}
+export const emptyStoryboard = (): Storyboard => core.emptyStoryboard();
 
 /** Step 1 of the process flow: put a participant somewhere in the world. */
-export function place(sb: Storyboard, kind: Kind, position: Vec3): Storyboard {
-  const n = sb.participants.filter((p) => p.kind === kind).length + 1;
-  const participant = { id: `${kind}-${n}`, kind, category: categoryOf(kind), position: { ...position } };
-  return { ...sb, participants: [...sb.participants, participant] };
-}
+export const place = (sb: Storyboard, kind: Kind, position: Vec3): Storyboard => core.place(sb, kind, position);
 
 /** Step 1 again: put an already placed participant somewhere else. Its motion is kept. */
-export function reposition(sb: Storyboard, participantId: string, position: Vec3): Storyboard {
-  find(sb, participantId);
-  return {
-    ...sb,
-    participants: sb.participants.map((p) => (p.id === participantId ? { ...p, position: { ...position } } : p)),
-  };
-}
+export const reposition = (sb: Storyboard, participantId: string, position: Vec3): Storyboard =>
+  core.reposition(sb, participantId, position);
 
 /** Step 2: tell a participant where to be at a given time. */
-export function addWaypoint(sb: Storyboard, participantId: string, waypoint: Waypoint): Storyboard {
-  const participant = find(sb, participantId);
-  if (!canMove(participant.category)) {
-    throw new Error(`${participantId} is ${participant.category} and cannot move`);
-  }
-  if (!(waypoint.time >= 0)) throw new Error(`Waypoint time must be 0 or more, got ${waypoint.time}`);
-  const motion = [...(sb.motions[participantId] ?? []), waypoint];
-  return { ...sb, motions: { ...sb.motions, [participantId]: motion } };
-}
+export const addWaypoint = (sb: Storyboard, participantId: string, waypoint: Waypoint): Storyboard =>
+  core.addWaypoint(sb, participantId, waypoint);
 
 /** Step 3: something unexpected happens. */
-export function addEvent(sb: Storyboard, event: IncidentEvent): Storyboard {
-  if ('participantId' in event) find(sb, event.participantId);
-  if (!(event.at >= 0)) throw new Error(`Event time must be 0 or more, got ${event.at}`);
-  return { ...sb, events: [...sb.events, event] };
-}
-
-function find(sb: Storyboard, id: string): Participant {
-  const participant = sb.participants.find((p) => p.id === id);
-  if (!participant) throw new Error(`No participant called ${id} in this story`);
-  return participant;
-}
+export const addEvent = (sb: Storyboard, event: IncidentEvent): Storyboard => core.addEvent(sb, event);

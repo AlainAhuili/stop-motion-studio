@@ -2,14 +2,18 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { generateFilm } from '../src/domain/film';
-import { addEvent, addWaypoint, emptyStoryboard, place } from '../src/domain/storyboard';
+import { emptyStoryboard, type Storyboard } from '../src/domain/storyboard';
 
 it('makes a 2-minute film with 100 participants at 24 fps in under 1.5 s', () => {
-  let sb = emptyStoryboard();
+  // Built as plain data: going through place()/addWaypoint() 1,300 times would measure the
+  // storyboard round trips into C++, not film generation.
+  const sb: Storyboard = emptyStoryboard();
   for (let i = 1; i <= 100; i++) {
-    sb = place(sb, 'horse', { x: i, y: 0, z: 0 });
-    for (let t = 10; t <= 120; t += 10) sb = addWaypoint(sb, `horse-${i}`, { time: t, position: { x: i, y: 0, z: t } });
-    sb = addEvent(sb, { type: 'stop', participantId: `horse-${i}`, at: 30, duration: 0 });
+    const id = `horse-${i}`;
+    sb.participants.push({ id, kind: 'horse', category: 'animal', position: { x: i, y: 0, z: 0 } });
+    sb.motions[id] = [];
+    for (let t = 10; t <= 120; t += 10) sb.motions[id].push({ time: t, position: { x: i, y: 0, z: t } });
+    sb.events.push({ type: 'stop', participantId: id, at: 30, duration: 0 });
   }
 
   const started = performance.now();

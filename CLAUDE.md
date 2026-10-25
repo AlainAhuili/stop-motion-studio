@@ -6,15 +6,18 @@ give them motions, add incident events, then generate a film from that storyboar
 Stack: TypeScript, Vite, Three.js, Vitest (unit), Playwright (acceptance + performance).
 Domain core: C++17 in `core/`, tested natively with GoogleTest, compiled to WebAssembly with Emscripten.
 
-## C++ core (migration in progress)
+## C++ core
 
-- The business rules are moving from `src/domain/*.ts` to `core/` one module at a time. Done: `motion`.
-  Still in TypeScript: `storyboard`, `film`.
-- Each migrated module keeps its TypeScript file as a thin wrapper with the same API, so the UI and
-  the acceptance tests do not change. The existing TypeScript tests then prove the C++ behaves the same.
+- **All business rules are in C++** (`core/`): participants, storyboard, motion, film.
+  `src/domain/*.ts` holds only TypeScript types and one-line calls into `core.ts` (the WebAssembly module).
+  Never add a rule in TypeScript; add it in C++ and expose it through `core/bindings/wasm.cpp`.
 - Write the C++ test first (`core/tests/`), then the code (`core/src/`). Warnings are errors.
+- The TypeScript tests in `src/domain/*.test.ts` are contract tests for the bindings: they must keep passing unchanged.
 - Only `core/bindings/wasm.cpp` may include Emscripten headers; the rest of `core/` stays portable.
-- Objects created in WebAssembly must be freed: wrappers expose `dispose()` and callers use `try/finally`.
+- Storyboards cross the boundary as plain JS objects (copied each call); films come back as flat typed arrays.
+  Keep large data in typed arrays, never thousands of embind objects.
+- Rule violations are thrown as `std::invalid_argument` and arrive in JavaScript as `Error` with the same message.
+- Download size is budgeted (perf stage): avoid iostreams and other heavy C++ libraries in `core/`; the build uses `-Oz`.
 - Emscripten is pinned (`EMSDK_VERSION` in the workflow); install the same version locally in `~/emsdk`.
 
 ## Engineering Rules (Dave Farley CD Process)
