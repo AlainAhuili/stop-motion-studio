@@ -5,3 +5,4 @@ deployments/
 test-results/
 playwright-report/
 src/domain/wasm/core.js
+core/build*/
