@@ -4,6 +4,18 @@ A toy for children: place participants in a 3D world (landscape, animals, vehicl
 give them motions, add incident events, then generate a film from that storyboard.
 
 Stack: TypeScript, Vite, Three.js, Vitest (unit), Playwright (acceptance + performance).
+Domain core: C++17 in `core/`, tested natively with GoogleTest, compiled to WebAssembly with Emscripten.
+
+## C++ core (migration in progress)
+
+- The business rules are moving from `src/domain/*.ts` to `core/` one module at a time. Done: `motion`.
+  Still in TypeScript: `storyboard`, `film`.
+- Each migrated module keeps its TypeScript file as a thin wrapper with the same API, so the UI and
+  the acceptance tests do not change. The existing TypeScript tests then prove the C++ behaves the same.
+- Write the C++ test first (`core/tests/`), then the code (`core/src/`). Warnings are errors.
+- Only `core/bindings/wasm.cpp` may include Emscripten headers; the rest of `core/` stays portable.
+- Objects created in WebAssembly must be freed: wrappers expose `dispose()` and callers use `try/finally`.
+- Emscripten is pinned (`EMSDK_VERSION` in the workflow); install the same version locally in `~/emsdk`.
 
 ## Engineering Rules (Dave Farley CD Process)
 
@@ -28,7 +40,9 @@ Stack: TypeScript, Vite, Three.js, Vitest (unit), Playwright (acceptance + perfo
 
 ## Commands
 
-- `npm run commit-stage` runs typecheck, unit tests, build, and packages `artifact/`
+- `npm run core:test` builds `core/` natively and runs the C++ tests
+- `npm run core:wasm` builds `core/` to `src/domain/wasm/core.js` (generated, not committed; needed before typecheck and tests)
+- `npm run commit-stage` runs the WebAssembly build, typecheck, C++ and TypeScript unit tests, build, and packages `artifact/`
 - `bash scripts/deploy.sh <env> artifact deployments/<env>` deploys the artifact into a directory
 - `BASE_URL=http://localhost:4173 npm run test:acceptance` (serve first with `npm run serve -- deployments/acceptance 4173`)
 - `npm run test:perf` runs the performance stage

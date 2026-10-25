@@ -5,7 +5,8 @@ export default defineConfig({
   // so it never has to be rebuilt per environment.
   base: './',
   // The real size budget is enforced on the gzipped bundle in the performance stage.
-  build: { outDir: 'dist', sourcemap: true, chunkSizeWarningLimit: 800 },
+  // ES2022 for top-level await, used to load the WebAssembly core before the domain is used.
+  build: { outDir: 'dist', sourcemap: true, chunkSizeWarningLimit: 800, target: 'es2022' },
   test: {
     include: ['src/**/*.test.ts'],
   },

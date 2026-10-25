@@ -13,6 +13,9 @@ concurrency:
   group: pipeline-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  EMSDK_VERSION: 6.0.13   # same Emscripten as local builds
+
 jobs:
   commit-stage:
     name: Commit stage (< 5 min)
@@ -23,8 +26,23 @@ jobs:
       - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm }
       - run: npm ci
+      - name: C++ unit tests (native)
+        run: npm run core:test
+      - uses: actions/cache@v6
+        with:
+          path: ~/emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}
+      - name: Build the C++ core to WebAssembly
+        run: |
+          if [ ! -d ~/emsdk ]; then
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+            ~/emsdk/emsdk install "$EMSDK_VERSION"
+          fi
+          ~/emsdk/emsdk activate "$EMSDK_VERSION"
+          source ~/emsdk/emsdk_env.sh
+          npm run core:wasm
       - run: npm run typecheck
-      - run: npm run test:unit
+      - run: npm run test:unit   # the TypeScript domain tests, now running on the WebAssembly core
       - run: npm run build
       - run: node scripts/package-artifact.mjs
       - uses: actions/upload-artifact@v7

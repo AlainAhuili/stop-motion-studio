@@ -1,4 +1,4 @@
-import { positionAt } from './motion';
+import { createMotion } from './motion';
 import type { Kind, Vec3 } from './participants';
 import type { IncidentEvent, Storyboard } from './storyboard';
 
@@ -37,27 +37,31 @@ export function generateFilm(sb: Storyboard, { fps }: { fps: number }): Film {
   const duration = filmDuration(sb, stopsOf);
   const count = Math.floor(duration * fps + 1e-9) + 1;
   const frames: Frame[] = [];
-  // Work out each participant's events once, not once per frame.
+  // Work out each participant's motion and events once, not once per frame.
   const cast = sb.participants.map((p) => ({
     p,
-    waypoints: [...(sb.motions[p.id] ?? [])].sort((a, b) => a.time - b.time),
+    motion: createMotion(p.position, sb.motions[p.id] ?? []),
     stops: stopsOf(p.id),
     vanishAt: vanishAt(p.id),
   }));
 
-  for (let index = 0; index < count; index++) {
-    const time = Math.round((index / fps) * 1e6) / 1e6;
-    frames.push({
-      index,
-      time,
-      weather: time >= rainAt ? 'rain' : 'clear',
-      actors: cast.map(({ p, waypoints, stops, vanishAt }) => ({
-        id: p.id,
-        kind: p.kind,
-        position: positionAt(p.position, waypoints, time - frozenTime(stops, time)),
-        visible: time < vanishAt,
-      })),
-    });
+  try {
+    for (let index = 0; index < count; index++) {
+      const time = Math.round((index / fps) * 1e6) / 1e6;
+      frames.push({
+        index,
+        time,
+        weather: time >= rainAt ? 'rain' : 'clear',
+        actors: cast.map(({ p, motion, stops, vanishAt }) => ({
+          id: p.id,
+          kind: p.kind,
+          position: motion.positionAt(time - frozenTime(stops, time)),
+          visible: time < vanishAt,
+        })),
+      });
+    }
+  } finally {
+    cast.forEach(({ motion }) => motion.dispose());
   }
   return { fps, duration, frames };
 }

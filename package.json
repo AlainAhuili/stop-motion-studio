@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "core:test": "node scripts/core.mjs test",
+    "core:wasm": "node scripts/core.mjs wasm",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
     "build": "vite build",
-    "commit-stage": "npm run typecheck && npm run test:unit && npm run build && node scripts/package-artifact.mjs",
+    "commit-stage": "npm run core:wasm && npm run typecheck && npm run core:test && npm run test:unit && npm run build && node scripts/package-artifact.mjs",
     "serve": "node scripts/serve.mjs",
     "test:acceptance": "playwright test --project=acceptance",
     "test:perf": "vitest run --config vitest.perf.config.ts && playwright test --project=perf"
